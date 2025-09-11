@@ -30,4 +30,4 @@ class ProjectionHead(nn.Module):
 
     def forward(self, x):
         z = self.net(x)
-        return F.normalize(z, dim=1)
+        return F.normalize(z, dim=1) # p = 2 by default
