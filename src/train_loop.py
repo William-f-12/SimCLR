@@ -1,8 +1,12 @@
-import os, glob
-import torch
+import os, glob, time
+from tqdm.auto import tqdm
+
 from SimCLR import SimCLR
 from loss import NTXentLoss
 from data_aug import DataAugmentation
+from timer import EMAMeter, format_time
+
+import torch
 from PIL import Image
 from torch.utils.data import Dataset, DataLoader
 import torchvision.transforms as T
@@ -23,10 +27,22 @@ class MyImageDataset(Dataset):
 
 
 def train(model, train_loader, optimizer, loss_fn, device, epochs):
+    total_iters = len(train_loader) * epochs
+    ema_time = EMAMeter(beta=0.9)
+    global_start = time.time()
+
     model.train()
     for epoch in range(epochs):
+        epoch_start = time.time()
+        pbar = tqdm(enumerate(train_loader),
+                    total=len(train_loader),
+                    desc=f"Epoch {epoch+1}/{epochs}",
+                    leave=False)
+        
         total_loss = 0
-        for x_i, x_j in train_loader:
+        for step, (x_i, x_j) in pbar:
+            iter_start = time.time()
+
             x_i, x_j = x_i.to(device), x_j.to(device)
 
             # forward pass
@@ -43,10 +59,33 @@ def train(model, train_loader, optimizer, loss_fn, device, epochs):
             # calculate total loss
             total_loss += loss.item()
 
+            # update EMA timer
+            iter_time = time.time() - iter_start
+            ema_time.update(iter_time)
+
+            iters_done = epoch * len(train_loader) + (step + 1)
+            iters_left = total_iters - iters_done
+            eta_sec = ema_time.avg * iters_left
+
+            pbar.set_postfix(
+                loss=f"{loss.item():.4f}",
+                bt=f"{iter_time*1000:.0f}ms",
+                eta=format_time(eta_sec)
+            )
+
+        torch.save(model.state_dict(), f"saved_model/simclr_epoch{epoch+1}.pth")
+
+        epoch_time = time.time() - epoch_start
+        print(f"Epoch {epoch+1}/{epochs} finished in {format_time(epoch_time)} "
+              f"| avg batch ~ {ema_time.avg*1000:.0f} ms")
+
         print(f"Epoch [{epoch+1}/{epochs}], Loss: {total_loss/len(train_loader):.4f}")
 
+    total_time = time.time() - global_start
+    print(f"Training done in {format_time(total_time)}")
 
-Path  = "img/unlabeled/"
+
+Path  = "img/1/"
 def main():
     # prepare dataset and dataloader
     img_paths = glob.glob(os.path.join(Path, "*.png"))
