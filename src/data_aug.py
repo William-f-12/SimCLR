@@ -14,8 +14,8 @@ class DataAugmentation:
         return T.Compose([
             T.RandomResizedCrop(size=self.img_size, scale=(0.2, 1.0)),
             T.RandomChoice([T.RandomRotation(degrees=90), 
-                            T.RandomVerticalFlip()],
-                            T.RandomHorizontalFlip(), p=[0.4, 0.3, 0.3]),
+                            T.RandomVerticalFlip(),
+                            T.RandomHorizontalFlip()], p=[0.4, 0.3, 0.3]),
             T.RandomChoice([T.ColorJitter(0.8, 0.8, 0.8, 0.2), 
                             T.RandomGrayscale(p=0.6)], p=[0.5, 0.5]),
             T.RandomApply([T.GaussianBlur(kernel_size=min(21, int(0.1 * self.img_size)*2+1), sigma=(0.1, 2.0))], p=0.5),
