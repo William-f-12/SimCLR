@@ -85,10 +85,11 @@ def train(model, train_loader, optimizer, loss_fn, device, epochs):
     print(f"Training done in {format_time(total_time)}")
 
 
-Path  = "img/1/"
+# === Main function ===
+PATH  = "img/unlabeled/"
 def main():
     # prepare dataset and dataloader
-    img_paths = glob.glob(os.path.join(Path, "*.png"))
+    img_paths = glob.glob(os.path.join(PATH, "*.png"))
     dataset = MyImageDataset(img_paths, img_size=96)
     loader = DataLoader(dataset, batch_size=32, shuffle=True)
 
