@@ -26,13 +26,13 @@ class MyImageDataset(Dataset):
         return x_i, x_j
 
 
-def train(model, train_loader, optimizer, loss_fn, device, epochs):
-    total_iters = len(train_loader) * epochs
+def train(model, train_loader, optimizer, loss_fn, device, start_epoch, epochs):
+    total_iters = len(train_loader) * (epochs - start_epoch + 1)
     ema_time = EMAMeter(beta=0.9)
     global_start = time.time()
 
     model.train()
-    for epoch in range(epochs):
+    for epoch in range(start_epoch-1, epochs):
         epoch_start = time.time()
         pbar = tqdm(enumerate(train_loader),
                     total=len(train_loader),
@@ -73,7 +73,10 @@ def train(model, train_loader, optimizer, loss_fn, device, epochs):
                 eta=format_time(eta_sec)
             )
 
-        torch.save(model.state_dict(), f"saved_model/simclr_epoch{epoch+1}.pth")
+        torch.save({"epoch": epoch,
+              "model_state_dict": model.state_dict(),
+              "optimizer_state_dict": optimizer.state_dict(),
+              "loss": loss}, f"/content/drive/MyDrive/Colab_Notebooks/SimCLR/saved_model/checkpoint{epoch+1}.pth")
 
         epoch_time = time.time() - epoch_start
         print(f"Epoch {epoch+1}/{epochs} finished in {format_time(epoch_time)} "
@@ -87,6 +90,7 @@ def train(model, train_loader, optimizer, loss_fn, device, epochs):
 
 # === Main function ===
 PATH  = "img/unlabeled/"
+CHECKPOINT = -1
 def main():
     # prepare dataset and dataloader
     img_paths = glob.glob(os.path.join(PATH, "*.png"))
@@ -98,9 +102,17 @@ def main():
     model = SimCLR().to(device)
     loss_fn = NTXentLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+    start_epoch = 0
+
+    if CHECKPOINT >= 0:
+        checkpoint = torch.load(f"/content/drive/MyDrive/Colab_Notebooks/SimCLR/saved_model/checkpoint{CHECKPOINT}.pth", map_location=device)
+
+        model.load_state_dict(checkpoint["model_state_dict"])
+        optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+        start_epoch = checkpoint["epoch"] + 1
 
     # start training
-    train(model, loader, optimizer, loss_fn, device, epochs=2)
+    train(model, loader, optimizer, loss_fn, device, start_epoch=start_epoch, epochs=20)
 
 
 if __name__ == "__main__":
